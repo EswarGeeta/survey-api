@@ -1,0 +1,9 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "survey-api"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-nc762hufu3vw"
+s3_prefix = "survey-api"
+region = "ap-south-1"
+capabilities = "CAPABILITY_IAM"
