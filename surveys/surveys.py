@@ -32,7 +32,6 @@ def get_survey(id):
 
 def create_survey(newSurvey):
     survey = table.put_item(Item=newSurvey)
-    print(f'survey ---> {survey}')
     # response = table.put_item(
     #    Item={
     #         'year': year,

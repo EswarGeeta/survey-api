@@ -11,19 +11,6 @@ Globals:
     Timeout: 60
 
 Resources:
-  HelloWorldFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
-    Properties:
-      CodeUri: hello_world/
-      Handler: app.lambda_handler
-      Runtime: python3.8
-      Events:
-        HelloWorld:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-          Properties:
-            Path: /hello
-            Method: get
-
   SurveyTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -35,14 +22,35 @@ Resources:
         - AttributeName: id
           KeyType: HASH
       ProvisionedThroughput:
-        ReadCapacityUnits: 5
-        WriteCapacityUnits: 5
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
+  ClientsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: clients
+      AttributeDefinitions:
+        - AttributeName: client_id
+          AttributeType: S
+        - AttributeName: survey_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: client_id
+          KeyType: HASH
+        - AttributeName: survey_id
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
+  SendSurveySNSTopic:
+    Type: AWS::SNS::Topic
 
   SurveyFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: surveys/
-      Handler: app.surveys_handler
+      Handler: surveys.surveys_handler
       Runtime: python3.8
       Policies:
         - DynamoDBCrudPolicy:
@@ -65,16 +73,81 @@ Resources:
             Path: /surveys/{id}
             Method: get
 
+  ClientSurveyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: surveys/
+      Handler: clients.clients_handler
+      Runtime: python3.8
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName:
+              !Ref ClientsTable
+        - DynamoDBReadPolicy:
+            TableName:
+              !Ref SurveyTable
+        - SNSPublishMessagePolicy:
+            TopicName: 
+              !GetAtt SendSurveySNSTopic.TopicName
+      # Environment:
+      #   Variables:
+      #     SNStopic: !Ref SendSurveySNSTopic
+      Events:
+        ListClients:
+          Type: Api
+          Properties:
+            Path: /clients
+            Method: get
+        GetClient:
+          Type: Api
+          Properties:
+            Path: /clients/{client_id}
+            Method: get
+        CreateClient:
+          Type: Api
+          Properties:
+            Path: /clients
+            Method: post
+        ListClientSurveys:
+          Type: Api
+          Properties:
+            Path: /clients/{client_id}/surveys
+            Method: get
+        # AddSurveyToClient:
+        #   Type: Api
+        #   Properties:
+        #     Path: /clients/{client_id}/surveys/{survey_id}
+        #     Method: put
+        SendClientSurvey:
+          Type: Api
+          Properties:
+            Path: /clients/{client_id}/surveys/{survey_id}
+            Method: post
+        GetClientSurvey:
+          Type: Api
+          Properties:
+            Path: /clients/{client_id}/surveys/{survey_id}
+            Method: get
+
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  SurveyApi:
+    Description: "API Gateway endpoint URL for Prod stage for Survey API"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/surveys/"
+  SurveyFunction:
+    Description: "Surveys Lambda Function ARN"
+    Value: !GetAtt SurveyFunction.Arn
+  SurveyFunctionIamRole:
+    Description: "Implicit IAM Role created for Surveys function"
+    Value: !GetAtt SurveyFunctionRole.Arn
+  ClientSurveyFunction:
+    Description: ClientSurveyFunction function name
+    Value: !Ref ClientSurveyFunction
+  SNStopicName:
+    Description: SNS topic name
+    Value: !GetAtt SendSurveySNSTopic.TopicName
+  SNStopicARN:
+    Description: SNS topic ARN
+    Value: !Ref SendSurveySNSTopic
