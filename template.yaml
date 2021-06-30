@@ -113,11 +113,11 @@ Resources:
           Properties:
             Path: /clients/{client_id}/surveys
             Method: get
-        # AddSurveyToClient:
-        #   Type: Api
-        #   Properties:
-        #     Path: /clients/{client_id}/surveys/{survey_id}
-        #     Method: put
+        AddSurveyToClient:
+          Type: Api
+          Properties:
+            Path: /clients/{client_id}/surveys/{survey_id}
+            Method: put
         SendClientSurvey:
           Type: Api
           Properties:

@@ -3,7 +3,7 @@ import boto3
 
 dynamodb = boto3.resource('dynamodb')
 clients_table = dynamodb.Table('clients')
-surveys_table = dynamodb.Table('sruveys')
+surveys_table = dynamodb.Table('surveys')
 
 def list_clients():
     clients = clients_table.scan()['Items']
@@ -12,8 +12,8 @@ def list_clients():
         "body": json.dumps(clients),
     }
 
-def list_client_surveys(client_id):
-    response = clients_table.get_item(Key={"client_id": client_id })
+def get_one_client(client_id):
+    response = clients_table.get_item(Key={"client_id": client_id, 'survey_id': '0' })
     if('Item' in response):
         return {
             "statusCode": 200,
@@ -22,7 +22,7 @@ def list_client_surveys(client_id):
     else:
         return {
             "statusCode": 404,
-            "body": f"No client found with the given id: {cient_id}",
+            "body": f"No client found with the given id: {client_id}",
         }
 
 def get_one_client_survey(client_id, survey_id):
@@ -50,13 +50,13 @@ def create_client(newClient):
     }
 
 def attach_survey_to_client(client_id, survey_id):
-    response = clients_table.get_item(Key={"client_id": client_id })
+    response = clients_table.get_item(Key={'client_id': client_id, 'survey_id': '0' })
     if('Item' not in response):
         return {
             "statusCode": 404,
             "body": f"No client found with the given id: {client_id}",
         }
-    response = surveys_table.get_item(Key={"survey_id": survey_id })
+    response = surveys_table.get_item(Key={"id": survey_id })
     if('Item' not in response):
         return {
             "statusCode": 404,
@@ -67,10 +67,10 @@ def attach_survey_to_client(client_id, survey_id):
     response = clients_table.update_item(
         Key={
                 'client_id': client_id,
+                'survey_id': survey['id']
             },
-        UpdateExpression="set survey_id = :survey_id, survey = :survey",
+        UpdateExpression="set survey = :survey",
         ExpressionAttributeValues={
-                ':survey_id': survey.id,
                 ':survey': survey
             },
         ReturnValues="UPDATED_NEW"
@@ -94,10 +94,10 @@ def clients_handler(event, context):
         if('survey_id' in pathParams):
             return get_one_client_survey(pathParams['client_id'], pathParams['survey_id'])
         else:
-            return list_client_surveys(pathParams['client_id'])
+            return get_one_client(pathParams['client_id'])
 
     elif(event['httpMethod']== 'POST'):
         return create_client(json.loads(event['body']))
 
     elif(event['httpMethod']== 'PUT'):
-        return attach_survey_to_client(json.loads(event['body']))
+        return attach_survey_to_client(pathParams['client_id'], pathParams['survey_id'])
